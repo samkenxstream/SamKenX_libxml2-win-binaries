@@ -3,8 +3,16 @@ name: main
 on:
   release:
     types: [created]
+  push:
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
 
 jobs:
   main:
