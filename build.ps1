@@ -10,6 +10,14 @@ Param(
 $ErrorActionPreference = "Stop"
 Import-Module Pscx
 
+Function Get-BatPath($year, $edition, $vcvarsarch) {
+    if ($year -eq 2019) {
+        return "C:\Program Files (x86)\Microsoft Visual Studio\2019\$edition\VC\Auxiliary\Build\vcvars$vcvarsarch.bat"
+    } elseif ($year -eq 2022) {
+        return "C:\Program Files\Microsoft Visual Studio\2022\$edition\VC\Auxiliary\Build\vcvars$vcvarsarch.bat"
+    }
+}
+
 $platDir = If($x64) { "\x64" } ElseIf ($arm64) { "\arm64" } Else { "" }
 $distname = If($x64) { "win64" } ElseIf($arm64) { "win-arm64" } Else { "win32" }
 If($vs2008) { $distname = "vs2008.$distname" }
@@ -19,7 +27,18 @@ If($vs2008) {
     Import-VisualStudioVars -VisualStudioVersion "90" -Architecture $vcvarsarch
 } Else {
     $vcvarsarch = If($x64) { "x86_amd64" } ElseIf ($arm64) { "x86_arm64" } Else { "32" }
-    cmd.exe /c "call `"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars$vcvarsarch.bat`" && set > %temp%\vcvars$vcvarsarch.txt"
+
+    $community = Get-BatPath 2019 "Community" $vcvarsarch
+    $enterprise = Get-BatPath 2019 "Enterprise" $vcvarsarch
+    
+    $bat = ""
+    if (Test-Path $community) {
+        $bat = $community
+    } elseif (Test-Path $enterprise) {
+        $bat = $enterprise
+    }
+
+    cmd.exe /c "call `"$bat`" && set > %temp%\vcvars$vcvarsarch.txt"
     Get-Content "$env:temp\vcvars$vcvarsarch.txt" | Foreach-Object {
         if ($_ -match "^(.*?)=(.*)$") {
             Set-Content "env:\$($matches[1])" $matches[2]
